@@ -1,0 +1,19 @@
+[project]
+name = "bill-buddy-api"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi[standard]>=0.162.2",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.2.0",
+    "ruff>=0.17.4",
+]
+
+[tool.fastapi]
+entrypoint = "app.main:app"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "FAST"]
