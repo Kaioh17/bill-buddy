@@ -46,3 +46,10 @@ cd backend
 uv run pytest
 uv run ruff check . && uv run ruff format .
 ```
+
+
+# sqllite setup
+```bash
+uv run python -m db.init_db 
+``` 
+
