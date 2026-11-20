@@ -4,6 +4,7 @@ from datetime import date, datetime
 from decimal import Decimal
 
 from sqlalchemy import (
+    JSON,
     CheckConstraint,
     Date,
     DateTime,
@@ -15,7 +16,6 @@ from sqlalchemy import (
     func,
     text,
 )
-from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column
 
 from db.database import Base
@@ -62,16 +62,18 @@ class Subscription(Base):
         Index("subscriptions_match_idx", "user_id", "merchant_key", "frequency"),
     )
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        primary_key=True, server_default=func.gen_random_uuid()
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE")
     )
-    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     source: Mapped[SubscriptionSource] = mapped_column(
         _text_enum(SubscriptionSource, "subscription_source")
     )
     merchant_key: Mapped[str | None] = mapped_column(Text)  # NULL for manual
     name: Mapped[str] = mapped_column(Text)
-    frequency: Mapped[Frequency] = mapped_column(_text_enum(Frequency, "subscription_frequency"))
+    frequency: Mapped[Frequency] = mapped_column(
+        _text_enum(Frequency, "subscription_frequency")
+    )
     kind: Mapped[SubscriptionKind] = mapped_column(
         _text_enum(SubscriptionKind, "subscription_kind"),
         server_default=SubscriptionKind.SUBSCRIPTION.value,
@@ -81,9 +83,7 @@ class Subscription(Base):
     status: Mapped[SubscriptionStatus | None] = mapped_column(
         _text_enum(SubscriptionStatus, "subscription_status")
     )  # NULL for manual
-    likely_reasons: Mapped[list[str]] = mapped_column(
-        ARRAY(Text), server_default=text("'{}'")
-    )
+    likely_reasons: Mapped[list[str]] = mapped_column(JSON, server_default=text("'[]'"))
     amount: Mapped[Decimal] = mapped_column(Numeric(12, 2))
     last_payment_date: Mapped[date | None] = mapped_column(Date)
     next_expected_date: Mapped[date] = mapped_column(Date)

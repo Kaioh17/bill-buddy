@@ -1,29 +1,36 @@
-from datetime import date, datetime
+import datetime as dt
+import uuid
 from decimal import Decimal
 
-from sqlalchemy import Date, DateTime, ForeignKey, Numeric, String, func
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy import Date, ForeignKey, Index, Numeric, Text
+from sqlalchemy.orm import Mapped, mapped_column
 
 from db.database import Base
-import uuid
 
-# The transactions stored exactly as plaid sends it
+
 class Transaction(Base):
+    """A bank transaction stored as Plaid sends it."""
+
     __tablename__ = "transactions"
-    transaction_id: mapped_column[str] = mapped_column(primary_key=True) # plaid's transaction_id 
-    linked_account_id: mapped_column[uuid.UUID] = mapped_column(ForeignKey("linked_accounts.id", ondelete="CASCADE") , nullable=False) #forerign key-- not complete
-    user_id: mapped_column[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
-    plaid_account_id: mapped_column[str] = mapped_column() # plaid's account_id
-    amount: mapped_column[float] = mapped_column()
-    iso_currency_code: mapped_column[str] = mapped_column()
-    date: mapped_column[datetime.date] = mapped_column()
-    authorized_date: mapped_column[datetime.date] = mapped_column()
-    pending: mapped_column[bool] = mapped_column()
-    merchant_name: mapped_column[str] = mapped_column()
-    merchant_entity_id: mapped_column[str] = mapped_column()
-    original_description: mapped_column[str] = mapped_column()
-    pfc_primary: mapped_column[str] = mapped_column() 
-    pfc_detailed: mapped_column[str] = mapped_column()
+    __table_args__ = (Index("transactions_user_date_idx", "user_id", "date"),)
 
-
-
+    transaction_id: Mapped[str] = mapped_column(
+        Text, primary_key=True
+    )  # Plaid's id, dedupes syncs
+    linked_account_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("linked_accounts.id", ondelete="CASCADE")
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE")
+    )
+    plaid_account_id: Mapped[str] = mapped_column(Text)
+    amount: Mapped[Decimal] = mapped_column(Numeric(12, 2))
+    iso_currency_code: Mapped[str | None] = mapped_column(Text)
+    date: Mapped[dt.date] = mapped_column(Date)
+    authorized_date: Mapped[dt.date | None] = mapped_column(Date)
+    pending: Mapped[bool]
+    merchant_name: Mapped[str | None] = mapped_column(Text)
+    merchant_entity_id: Mapped[str | None] = mapped_column(Text)
+    original_description: Mapped[str | None] = mapped_column(Text)
+    pfc_primary: Mapped[str | None] = mapped_column(Text)
+    pfc_detailed: Mapped[str | None] = mapped_column(Text)
