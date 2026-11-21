@@ -1,0 +1,59 @@
+@import '@fontsource-variable/plus-jakarta-sans/wght.css';
+@import 'tailwindcss';
+
+/*
+ * Palette: white is the primary surface, blue the secondary (actions, links, focus),
+ * gray does the quiet work (shells, hairlines, muted text, disabled). Tailwind's own
+ * gray scale is used as is. Radius floor is 10px: never use rounded-sm/md/lg or bare rounded.
+ */
+@theme {
+  --font-sans: 'Plus Jakarta Sans Variable', system-ui, sans-serif;
+
+  --color-primary: #ffffff;
+  --color-secondary-50: #eff6ff;
+  --color-secondary-100: #dbeafe;
+  --color-secondary-500: #3b82f6;
+  --color-secondary-600: #2563eb;
+  --color-secondary-700: #1d4ed8;
+
+  --shadow-float:
+    0 1px 2px rgb(17 24 39 / 0.04), 0 8px 24px -8px rgb(17 24 39 / 0.08), 0 32px 64px -32px rgb(37 99 235 / 0.25);
+  --shadow-field: 0 1px 2px rgb(17 24 39 / 0.08), 0 6px 14px -6px rgb(17 24 39 / 0.12);
+
+  --ease-fluid: cubic-bezier(0.32, 0.72, 0, 1);
+
+  --animate-rise: rise 0.8s var(--ease-fluid) both;
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(1.5rem);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+}
+
+@layer base {
+  html {
+    color-scheme: light;
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    @apply bg-primary font-sans text-gray-900 antialiased;
+  }
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-secondary-600;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
