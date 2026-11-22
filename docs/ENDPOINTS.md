@@ -6,9 +6,10 @@ Focus is overall functionality: Plaid sandbox onboarding, subscription detection
 
 ## Summary
 
-About 27 endpoints for the prototype.
-4 already exist, so about 23 are new.
-With the suggested cuts at the bottom, about 24 total and roughly 20 new.
+About 29 endpoints for the prototype.
+11 are built and tested: 4 auth and health, 7 Plaid onboarding.
+18 are still open: 7 detection, 3 manual, 4 reporting, 4 notifications.
+With the suggested cuts at the bottom (merchant links, and the month payments route), the open count drops to about 16.
 
 ## Already built (4)
 
@@ -19,7 +20,7 @@ With the suggested cuts at the bottom, about 24 total and roughly 20 new.
 | GET | `/health/` |
 | GET | `/health/me` |
 
-## Plaid sandbox onboarding (6) [in progress]
+## Plaid sandbox onboarding (7) [done]
 
 | Method | Path | Purpose |
 |---|---|---|
@@ -28,11 +29,13 @@ With the suggested cuts at the bottom, about 24 total and roughly 20 new.
 | GET | `/accounts` | List linked accounts with last sync and `needs_reauth` |
 | POST | `/accounts/{id}/sync` | Sync now, returns last sync time |
 | DELETE | `/accounts/{id}` | Disconnect, optionally delete its transactions |
-| POST | `/plaid/webhook` | Webhook that triggers an import |
+| POST | `/plaid/webhook` | Webhook that triggers an import, signature verified |
+| POST | `/plaid/sandbox-link` | Dev only, 404 outside the sandbox: links Plaid's test bank with no Link UI |
 
-For the sandbox, Plaid has `/sandbox/public_token/create`.
-It makes a public token with no Link UI.
-That lets `exchange` be tested from the API alone, so link-token can wait for the frontend.
+All 7 are built with tests written first.
+`/plaid/sandbox-link` was added so the flow can be tested from Swagger without the frontend.
+The sandbox test user is set in `SANDBOX_USER` in `app/core/plaid.py`.
+Not built yet: the reconnect flow for `needs_reauth` (Plaid update mode), the 15 minute scheduler, and the user notice when retries run out.
 
 ## Subscription detection and the assumed list (7) [open]
 
@@ -90,8 +93,6 @@ That brings this group to 3.
 
 ## Suggested cuts since this is a prototype
 
-- **Webhook and signature verification:** the sandbox can be driven by "Sync now" alone.
-  This takes 1 endpoint off the Plaid group.
 - **Merchant links:** the manual link flow is an edge case.
   Alias matching plus a Plaid entity ID is enough to demo detection.
 

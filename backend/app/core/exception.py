@@ -83,6 +83,38 @@ class EmailAlreadyRegisteredError(ConflictError):
     )
 
 
+# Bank link and sync errors. Messages are safe to show: Plaid's own wording and codes
+# stay in the logs and never reach the client.
+class BankProviderError(AppException):
+    status_code, code, message = (
+        502,
+        "bank_provider_error",
+        "We could not reach your bank provider. Please try again.",
+    )
+
+
+class SyncFailedError(BankProviderError):
+    code, message = (
+        "sync_failed",
+        "Sync failed. Your data may be out of date. Try sync now.",
+    )
+
+
+class ReconnectRequiredError(ConflictError):
+    code, message = (
+        "reconnect_required",
+        "Your bank login has expired. Reconnect this account.",
+    )
+
+
+class SyncInProgressError(ConflictError):
+    code, message = "sync_in_progress", "A sync is already running for this account"
+
+
+class InvalidWebhookError(UnauthorizedError):
+    code, message = "invalid_webhook", "Invalid webhook signature"
+
+
 def _error(
     status: int, code: str, message: str, details=None, headers=None
 ) -> JSONResponse:

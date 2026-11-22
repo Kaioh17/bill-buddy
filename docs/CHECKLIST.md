@@ -9,36 +9,40 @@ FR = functional requirement, NFR = non-functional requirement, TC = test case.
 - [x] FastAPI app, health route, uv/ruff/pytest setup
 - [x] Async SQLAlchemy engine and session (`db/database.py`)
 - [x] Models for all 9 tables plus enums (`app/models/`)
-- [ ] Register `matched_payments` in `app/main.py` model imports (currently missing)
+- [x] Register `matched_payments` in `app/main.py` model imports
 - [ ] Rename `merchnant_links.py` typo
 - [ ] Add migrations (Alembic is not installed yet)
 - [ ] Add notification preference storage on users (design says users hold it, model has none)
 - [ ] Config module: Plaid keys, encryption key, session timeout (15 min), detection thresholds (gap ranges, amount change, date drift)
+  - Plaid keys, encryption key and session timeout are done. Detection thresholds are open.
 - [ ] Seed script for `catalog_entries` (about 20 services, a few sharing a service_type)
-- [ ] Test database and a way to fake "today" (needed for 59/60/61 and day 30/31 tests)
+- [x] Test database and a way to fake "today" (needed for 59/60/61 and day 30/31 tests)
 
 ### Auth and security (NFR 1)
 - [x] Register and login with bcrypt or argon2 password hashing
 - [x] Session token on every request, 15 min inactivity expiry (TC-16)
 - [x] `current_user` dependency, every query filtered by the session user ID, never a request ID (TC-17)
-- [ ] Encrypt Plaid access token before saving
-- [ ] Verify signature on every Plaid webhook
+- [x] Encrypt Plaid access token before saving
+- [x] Verify signature on every Plaid webhook
 - [ ] HTTPS only, secrets from env or secret store
 
 ### Plaid integration (FR 1)
-- [ ] One Plaid module that wraps all calls, API version pinned in config
-- [ ] Create link token (transactions product, 24 months requested)
-- [ ] Exchange public token, save linked account with encrypted token (FR 1a, TC-01)
+- [x] One Plaid module that wraps all calls, API version pinned in config
+- [x] Create link token (transactions product, 24 months requested)
+- [x] Exchange public token, save linked account with encrypted token (FR 1a, TC-01)
 - [ ] Handle cancelled link: nothing saved, clear message (TC-04)
-- [ ] `importAccount`: fetch changes by cursor, one DB transaction, skip pending and older than 12 months, skip duplicates by `transaction_id`, apply modified and removed, save cursor last (FR 1b, TC-02, TC-18)
-- [ ] Rollback on error, keep old data and old cursor (TC-19)
+  - Backend saves nothing until `/plaid/exchange` is called. The message is a frontend task.
+- [x] `importAccount`: fetch changes by cursor, one DB transaction, skip pending and older than 12 months, skip duplicates by `transaction_id`, apply modified and removed, save cursor last (FR 1b, TC-02, TC-18)
+- [x] Rollback on error, keep old data and old cursor (TC-19)
 - [ ] Retry temporary errors 3 times (15 min, 1 hr, 4 hr) via `next_sync`, then notify user and retry in 24 hr
+  - Backoff and 24 hr retry are done, the user notice waits for in-app notifications.
 - [ ] Do not retry permanent errors (expired login): set `needs_reauth`, ask user to reconnect
-- [ ] Per-account lock so two imports never run at once
+  - `needs_reauth` is set and sync is refused. The reconnect flow (Plaid update mode) is not built yet.
+- [x] Per-account lock so two imports never run at once
 - [ ] Scheduled sync: cron every 15 min picks accounts where `next_sync` has passed (FR 1c)
-- [ ] "Sync now" endpoint, returns last sync time (TC-03)
-- [ ] Webhook endpoint that triggers an import
-- [ ] Disconnect account: revoke token, delete that account's transactions on request (NFR 2)
+- [x] "Sync now" endpoint, returns last sync time (TC-03)
+- [x] Webhook endpoint that triggers an import
+- [x] Disconnect account: revoke token, delete that account's transactions on request (NFR 2)
 
 ### Subscription detection (FR 2)
 - [ ] `detectSubscriptions` after each import for WEEKLY and MONTHLY (3 charges minimum, TC-05, TC-06)
@@ -82,10 +86,13 @@ FR = functional requirement, NFR = non-functional requirement, TC = test case.
 
 ### Cross-cutting
 - [ ] Pydantic schemas in `app/schema/`
-- [ ] Logging of sync failures and errors with user ID, account ID, error
+  - Done for auth, plaid, accounts and the shared envelope. The rest come with their routes.
+- [x] Logging of sync failures and errors with user ID, account ID, error
+  - Covers imports (`sync_failed`, `import_crashed`) and Plaid calls (`plaid_error`). Add the same for detection and reminders when they exist.
 - [ ] Background worker and queue for syncs and the yearly job
 - [ ] Daily DB backups with point-in-time recovery, restore tested before launch (infra)
 - [ ] Pytest for every TC that can be automated, Plaid sandbox only, mocked Plaid for load tests
+  - Plaid onboarding is covered (219 tests, FakePlaid, in-memory SQLite). Detection, reporting and reminders are open.
 
 ## Frontend
 
