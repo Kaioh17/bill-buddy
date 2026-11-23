@@ -16,7 +16,7 @@ from app.models import (  # noqa: F401  (registers tables on Base.metadata)
     transactions,
     users,
 )
-from app.routers import auth, health
+from app.routers import accounts, auth, health, plaid
 
 
 def create_app() -> FastAPI:
@@ -27,6 +27,8 @@ def create_app() -> FastAPI:
     register_exception_handlers(app)
     app.include_router(health.router)
     app.include_router(auth.router)
+    app.include_router(plaid.router)
+    app.include_router(accounts.router)
 
     # Rate limiting on login and signup is intentionally not here yet.
     # It is out of scope for the school project, add it before any real deployment.

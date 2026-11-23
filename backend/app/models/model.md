@@ -5,7 +5,7 @@
 users (id pk, first_name, last_name, email unique, password_hash, created_at, updated_at)
 One row per app account.
 
-linked_accounts (id pk, user_id fk, plaid_item_id, institution_name, access_token_enc, status, cursor, history_ready, last_sync_at, next_sync, last_error, sync_locked_at, yearly_check_status, yearly_check_attempts, yearly_check_started_at, created_at)
+linked_accounts (id pk, user_id fk, plaid_item_id, institution_name, access_token_enc, status, cursor, history_ready, last_sync_at, next_sync, last_error, sync_locked_at, sync_failures, yearly_check_status, yearly_check_attempts, yearly_check_started_at, created_at)
 A bank connection (Plaid item) for a user, plus its sync state (cursor, schedule, lock, errors) and yearly-check progress.
 
 transactions (transaction_id pk, linked_account_id fk, user_id fk, plaid_account_id, amount, iso_currency_code, date, authorized_date, pending, merchant_name, merchant_entity_id, original_description, pfc_primary, pfc_detailed)

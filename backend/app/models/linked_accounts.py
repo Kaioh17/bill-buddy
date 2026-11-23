@@ -54,6 +54,8 @@ class LinkedAccount(Base):
     )
     last_error: Mapped[str | None] = mapped_column(Text)
     sync_locked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Failed syncs in a row, drives the retry schedule. Reset to 0 on success.
+    sync_failures: Mapped[int] = mapped_column(Integer, server_default="0")
 
     yearly_check_status: Mapped[str | None] = mapped_column(String(32))
     yearly_check_attempts: Mapped[int] = mapped_column(Integer, server_default="0")
