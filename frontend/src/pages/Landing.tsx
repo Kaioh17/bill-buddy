@@ -27,7 +27,7 @@ export default function Landing() {
       <h2 className="text-2xl font-bold tracking-tight">What you get</h2>
       <ul className="mt-6 grid gap-3">
         {points.map(([name, text]) => (
-          <li key={name} className="rounded-2xl bg-gray-50 px-4 py-3">
+          <li key={name} className="rounded-lg bg-gray-50 px-4 py-3">
             <p className="font-semibold">{name}</p>
             <p className="mt-0.5 text-sm text-gray-500">{text}</p>
           </li>

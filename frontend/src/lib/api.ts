@@ -153,12 +153,65 @@ export type TokenInfo = {
   token_id: string
 }
 
+// Sample data for dev. `DEV` is false in a production build, so the mock module and its
+// sign-in are dropped from the bundle. Tests always use the real client.
+const MOCK = import.meta.env.DEV && import.meta.env.MODE !== 'test' && import.meta.env.VITE_USE_MOCKS === 'true'
+const mocks = () => import('./mocks')
+
 export async function login(email: string, password: string) {
+  if (MOCK) return session.start((await mocks()).token(email))
   // OAuth2 password flow: form-encoded, and the email goes in `username`.
   const t = await api<Token>('/auth/login', { form: { username: email, password } })
   session.start(t.access_token)
 }
 
-export const signup = (input: SignupInput) => api('/auth/signup', { json: input })
+export async function signup(input: SignupInput) {
+  if (!MOCK) await api('/auth/signup', { json: input })
+}
 
 export const getSessionInfo = () => api<TokenInfo>('/health/me')
+
+/** The backend's success envelope. Login and the health routes do not use it. */
+type Envelope<T> = { meta: { count: number | null }; data: T }
+
+// Money arrives as decimal strings. Format and add it with lib/format.
+
+export type Dashboard = {
+  /** Oldest first. `manual` is kept apart from confirmed bank payments (FR 4b). */
+  months: { month: string; confirmed: string; manual: string }[]
+  total_monthly_spend: string
+  /** Projected, so always shown as estimated. */
+  yearly_by_category: { category: string | null; amount: string }[]
+  active_count: number
+}
+
+export type UpcomingPayment = {
+  subscription_id: string
+  name: string
+  category: string | null
+  date: string
+  amount: string
+  label: 'actual' | 'manual'
+}
+
+export type CurrentUser = { first_name: string; last_name: string }
+
+// TODO(backend): /dashboard and /payments/upcoming are planned in docs/ENDPOINTS.md but not
+// built yet. These shapes follow the Design Report (FR 5), check them once the routes exist.
+
+/** Months are `YYYY-MM`, both ends included. */
+export async function getDashboard(from: string, to: string): Promise<Dashboard> {
+  if (MOCK) return (await mocks()).getDashboard(from, to)
+  return (await api<Envelope<Dashboard>>(`/dashboard?from=${from}&to=${to}`)).data
+}
+
+/** The next 30 days, soonest first. */
+export async function getUpcomingPayments(): Promise<UpcomingPayment[]> {
+  if (MOCK) return (await mocks()).getUpcomingPayments()
+  return (await api<Envelope<UpcomingPayment[]>>('/payments/upcoming')).data
+}
+
+/** TODO(backend): no route returns the signed-in user's name yet, so this is null for now. */
+export async function getCurrentUser(): Promise<CurrentUser | null> {
+  return MOCK ? (await mocks()).currentUser : null
+}

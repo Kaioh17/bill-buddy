@@ -1,24 +1,33 @@
-@import '@fontsource-variable/plus-jakarta-sans/wght.css';
+@import '@fontsource-variable/inter/wght.css';
 @import 'tailwindcss';
 
 /*
- * Palette: white is the primary surface, blue the secondary (actions, links, focus),
- * gray does the quiet work (shells, hairlines, muted text, disabled). Tailwind's own
- * gray scale is used as is. Radius floor is 10px: never use rounded-sm/md/lg or bare rounded.
+ * Palette, from the Figma mockup: white is the primary surface, teal the secondary (actions,
+ * links, focus, chart bars), gray does the quiet work (page, hairlines, muted text, disabled).
+ * Gray is retinted green, and gray-500 is a step darker than the mockup so muted text
+ * clears 4.5:1 on white, gray-50 and gray-100.
+ * Radius: rounded-lg for controls, rounded-xl for cards.
  */
 @theme {
-  --font-sans: 'Plus Jakarta Sans Variable', system-ui, sans-serif;
+  --font-sans: 'Inter Variable', system-ui, sans-serif;
 
   --color-primary: #ffffff;
-  --color-secondary-50: #eff6ff;
-  --color-secondary-100: #dbeafe;
-  --color-secondary-500: #3b82f6;
-  --color-secondary-600: #2563eb;
-  --color-secondary-700: #1d4ed8;
+  --color-secondary-50: #edf6f3;
+  --color-secondary-100: #d5e9e3;
+  --color-secondary-200: #bad8d0;
+  --color-secondary-600: #137c70;
+  --color-secondary-700: #105d55;
+
+  --color-gray-50: #f6f8f8;
+  --color-gray-100: #edf0ef;
+  --color-gray-200: #e4eae8;
+  --color-gray-300: #cfd9d6;
+  --color-gray-500: #5d6b69;
+  --color-gray-600: #4d5b59;
+  --color-gray-900: #203735;
 
   --shadow-float:
-    0 1px 2px rgb(17 24 39 / 0.04), 0 8px 24px -8px rgb(17 24 39 / 0.08), 0 32px 64px -32px rgb(37 99 235 / 0.25);
-  --shadow-field: 0 1px 2px rgb(17 24 39 / 0.08), 0 6px 14px -6px rgb(17 24 39 / 0.12);
+    0 1px 2px rgb(17 24 39 / 0.04), 0 8px 24px -8px rgb(17 24 39 / 0.08), 0 32px 64px -32px rgb(19 124 112 / 0.2);
 
   --ease-fluid: cubic-bezier(0.32, 0.72, 0, 1);
 
@@ -41,11 +50,16 @@
     -webkit-tap-highlight-color: transparent;
   }
   body {
-    @apply bg-primary font-sans text-gray-900 antialiased;
+    @apply bg-gray-50 font-sans text-gray-900 antialiased;
   }
   :focus-visible {
     @apply outline-2 outline-offset-2 outline-secondary-600;
   }
+}
+
+/* Content column of a signed-in page. */
+@utility page {
+  @apply mx-auto w-full max-w-[90rem] px-4 pt-8 pb-12 sm:px-8 lg:px-16;
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -1,63 +1,84 @@
-import { useEffect, useState } from 'react'
-import { Alert, Card } from '../components/ui'
-import { ApiError, getSessionInfo, type TokenInfo } from '../lib/api'
-import { GENERIC_ERROR } from '../lib/form'
+import { CalendarDotsIcon, PlusIcon } from '@phosphor-icons/react'
+import { useState } from 'react'
+import { LoadError } from '../components/dashboard/Section'
+import SpendingChart from '../components/dashboard/SpendingChart'
+import { ActiveSubscriptions, MonthlySpend } from '../components/dashboard/StatCards'
+import UpcomingPayments from '../components/dashboard/UpcomingPayments'
+import YearlySpend from '../components/dashboard/YearlySpend'
+import PageHeader from '../components/PageHeader'
+import Select from '../components/Select'
+import { ButtonLink, Card } from '../components/ui'
+import { getDashboard } from '../lib/api'
+import { addMonths, formatMonth, toDay, toMonth } from '../lib/format'
+import { percentChange, toMonthSpend } from '../lib/spending'
+import { useApi } from '../lib/useApi'
 
-const when = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' })
+// The backend keeps 12 months. Loading them all once makes the pickers instant.
+const HISTORY_MONTHS = 12
+
+function loadDashboard() {
+  const current = toMonth(new Date())
+  return getDashboard(addMonths(current, 1 - HISTORY_MONTHS), current)
+}
 
 export default function Dashboard() {
-  const [info, setInfo] = useState<TokenInfo>()
-  const [error, setError] = useState<string>()
+  const { data, error, retry } = useApi(loadDashboard)
+  const [today] = useState(() => toDay(new Date()))
+  const currentMonth = today.slice(0, 7)
+  const [month, setMonth] = useState(currentMonth)
 
-  // Calls a protected route. It proves the guard works and shows the session the backend sees.
-  useEffect(() => {
-    let live = true
-    getSessionInfo()
-      .then((d) => live && setInfo(d))
-      .catch((err) => live && setError(err instanceof ApiError ? err.message : GENERIC_ERROR))
-    return () => {
-      live = false
-    }
-  }, [])
-
-  const rows: [string, string | undefined][] = [
-    ['Session started', info?.session_started_at],
-    ['Logs you out if idle after', info?.expires_at],
-    ['Hard session limit', info?.session_expires_at],
-  ]
+  const isCurrent = month === currentMonth
+  const previousMonth = addMonths(month, -1)
+  const months = data?.months.map(toMonthSpend)
+  const spendIn = (m: string) => months?.find((x) => x.month === m)?.total
+  // The current month is not over, so it shows the projection rather than payments so far.
+  const total = data && (isCurrent ? Number(data.total_monthly_spend) : (spendIn(month) ?? 0))
+  const change = total === undefined ? null : percentChange(total, spendIn(previousMonth))
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 pt-28 pb-16 lg:py-32">
+    <div className="page">
       <title>Dashboard - Bill Buddy</title>
-      <div className="animate-rise">
-        <h1 className="text-4xl leading-[1.04] font-extrabold tracking-tight sm:text-6xl">You are signed in.</h1>
+      <PageHeader
+        title="Dashboard"
+        lede={`Your bills, in one clear view. Here\u2019s how ${formatMonth(month, 'long')} ${isCurrent ? 'is looking' : 'looked'}.`}
+        actions={
+          <>
+            <Select label="Month" icon={<CalendarDotsIcon size={18} aria-hidden />} value={month} onChange={(e) => setMonth(e.target.value)}>
+              {Array.from({ length: HISTORY_MONTHS }, (_, ago) => addMonths(currentMonth, -ago)).map((m) => (
+                <option key={m} value={m}>
+                  {formatMonth(m)}
+                </option>
+              ))}
+            </Select>
+            <ButtonLink to="/subscriptions/new">
+              <PlusIcon size={16} aria-hidden />
+              Add subscription
+            </ButtonLink>
+          </>
+        }
+      />
+
+      <div className="mt-7 grid gap-6 md:grid-cols-2">
+        {error ? (
+          <Card className="md:col-span-2">
+            <h2 className="text-sm font-medium text-gray-500">Overview</h2>
+            <LoadError what="your totals" message={error} onRetry={retry} />
+          </Card>
+        ) : (
+          <>
+            <MonthlySpend month={month} isCurrent={isCurrent} total={total} change={change} previousMonth={previousMonth} />
+            <ActiveSubscriptions count={data?.active_count} />
+          </>
+        )}
       </div>
 
-      <div className="mt-12 grid gap-6 md:grid-cols-3">
-        <Card className="animate-rise [animation-delay:150ms] md:col-span-2">
-          <h2 className="text-xl font-bold tracking-tight">Your session</h2>
-          <p className="mt-1 text-gray-500">Renewed on every request, so only inactivity ends it.</p>
-          {error && (
-            <div className="mt-6">
-              <Alert tone="error">Could not load session details. {error}</Alert>
-            </div>
-          )}
-          <dl className="mt-6 grid gap-4">
-            {rows.map(([label, value]) => (
-              <div key={label} className="flex flex-wrap items-center justify-between gap-x-6 gap-y-1 rounded-2xl bg-gray-50 px-4 py-3">
-                <dt className="text-sm text-gray-500">{label}</dt>
-                <dd className="min-h-6 text-sm font-semibold">
-                  {value ? when.format(new Date(value)) : !error && <span className="block h-5 w-36 animate-pulse rounded-xl bg-gray-200" />}
-                </dd>
-              </div>
-            ))}
-          </dl>
-        </Card>
+      <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,49fr)_minmax(0,79fr)]">
+        <UpcomingPayments today={today} />
+        <SpendingChart months={months} endMonth={month} error={error} onRetry={retry} />
+      </div>
 
-        <Card className="animate-rise [animation-delay:300ms]">
-          <h2 className="text-xl font-bold tracking-tight">Subscriptions</h2>
-          <p className="mt-1 text-gray-500">Nothing here yet. Your subscriptions will show up on this page.</p>
-        </Card>
+      <div className="mt-6">
+        <YearlySpend categories={data?.yearly_by_category} error={error} onRetry={retry} />
       </div>
     </div>
   )
