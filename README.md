@@ -67,6 +67,18 @@ This only works in `npm run dev`, never in a production build.
 
 Check your work with `npm run lint`, `npm run test` and `npm run build`.
 
+### Test accounts:
+
+| Email | What you see |
+|---|---|
+| demo@test.com | Full dashboard: 8 subscriptions, $245.00 a month |
+| empty@test.com | New user with no subscriptions ($0.00, empty chart) |
+| error@test.com | Server can't be reached, with "Try again" buttons |
+| slow@test.com | Loading placeholders for about 4 seconds |
+
+Any password works with the accounts mentioned like "test".
+
+
 # sqllite setup
 ```bash
 uv run python -m db.init_db 
