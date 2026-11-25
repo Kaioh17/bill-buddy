@@ -13,9 +13,10 @@ FR = functional requirement, NFR = non-functional requirement, TC = test case.
 - [ ] Rename `merchnant_links.py` typo
 - [ ] Add migrations (Alembic is not installed yet)
 - [ ] Add notification preference storage on users (design says users hold it, model has none)
-- [ ] Config module: Plaid keys, encryption key, session timeout (15 min), detection thresholds (gap ranges, amount change, date drift)
-  - Plaid keys, encryption key and session timeout are done. Detection thresholds are open.
-- [ ] Seed script for `catalog_entries` (about 20 services, a few sharing a service_type)
+- [x] Config module: Plaid keys, encryption key, session timeout (15 min), detection thresholds (gap ranges, amount change, date drift)
+  - Detection thresholds are constants at the top of `app/services/detection.py` (`RULES`, `AMOUNT_TOLERANCE`), not environment settings.
+- [x] Seed script for `catalog_entries` (about 20 services, a few sharing a service_type)
+  - `db/seed_catalog.py`, 22 services, safe to re-run, also run by `db.init_db`. Plaid merchant entity IDs are empty until real ones are known.
 - [x] Test database and a way to fake "today" (needed for 59/60/61 and day 30/31 tests)
 
 ### Auth and security (NFR 1)
@@ -45,21 +46,30 @@ FR = functional requirement, NFR = non-functional requirement, TC = test case.
 - [x] Disconnect account: revoke token, delete that account's transactions on request (NFR 2)
 
 ### Subscription detection (FR 2)
-- [ ] `detectSubscriptions` after each import for WEEKLY and MONTHLY (3 charges minimum, TC-05, TC-06)
+- [x] `detectSubscriptions` after each import for WEEKLY and MONTHLY (3 charges minimum, TC-05, TC-06)
 - [ ] Yearly detection as a one-time background job per account, 2 charges gives LIKELY, resumable via `yearly_check_status`
-- [ ] `scoreSeries`: ACTUAL, LIKELY (one unmet rule, with `likely_reasons`), or none
-- [ ] Only eligible charges: money out, not pending, not an excluded category
-- [ ] Save matched payments on detection, no duplicates (FR 4c)
-- [ ] Confirm and dismiss LIKELY items, use `dismissed_subscriptions` so they are not suggested again
-- [ ] Assumed list: save catalog selection, ignore unknown IDs (FR 2b, TC-07)
+  - The scoring is done and `detect_subscriptions` accepts `YEARLY`.
+  - The job is not built: it must pull 24 months from Plaid, and the importer stores only 12.
+- [x] `scoreSeries`: ACTUAL, LIKELY (one unmet rule, with `likely_reasons`), or none
+- [x] Only eligible charges: money out, not pending, not an excluded category
+  - Excluded Plaid categories: `TRANSFER_IN`, `TRANSFER_OUT`, `INCOME`, `BANK_FEES`.
+- [x] Save matched payments on detection, no duplicates (FR 4c)
+  - A payment whose transaction Plaid later removes is kept, there is no FK on purpose. Past payments (reporting) should decide whether to hide those.
+- [x] Confirm and dismiss LIKELY items, use `dismissed_subscriptions` so they are not suggested again
+  - A confirmed item is never demoted back to LIKELY by a later detection run.
+- [x] Assumed list: save catalog selection, ignore unknown IDs (FR 2b, TC-07)
 - [ ] Merchant to catalog matching: user link, then Plaid entity ID, then alias in name
+  - Entity ID then alias is done (`app/services/catalog.py`), and an entity ID match beats an alias match.
+  - The user link step waits for the merchant links route, which is cut for the prototype.
 - [ ] Manual link of an unmatched merchant to an assumed item, remembered in `merchant_links`
-- [ ] Flag 2 or more active subscriptions with the same `service_type` (FR 2c, TC-08)
+- [x] Flag 2 or more active subscriptions with the same `service_type` (FR 2c, TC-08)
+  - Only ACTUAL items count. Returned as `similar_to` on each subscription.
 
 ### Reconciliation (FR 3)
-- [ ] Unexpected: ACTUAL and active, matches nothing on assumed list (TC-09)
-- [ ] Unconfirmed: assumed item with no matching bank payment in last 60 days, exactly 60 counts as paid, 61 does not (TC-10)
-- [ ] Each item returns service name, last payment date, amount
+- [x] Unexpected: ACTUAL and active, matches nothing on assumed list (TC-09)
+  - Needs `subscriptions.catalog_entry_id`, set at detection time. A detected service with no catalog match is always unexpected.
+- [x] Unconfirmed: assumed item with no matching bank payment in last 60 days, exactly 60 counts as paid, 61 does not (TC-10)
+- [x] Each item returns service name, last payment date, amount
 
 ### Manual subscriptions (FR 4)
 - [ ] Validation: name required, amount greater than 0, frequency in WEEKLY/MONTHLY/YEARLY, next date today or later (TC-12)
@@ -86,13 +96,13 @@ FR = functional requirement, NFR = non-functional requirement, TC = test case.
 
 ### Cross-cutting
 - [ ] Pydantic schemas in `app/schema/`
-  - Done for auth, plaid, accounts and the shared envelope. The rest come with their routes.
+  - Done for auth, plaid, accounts, subscriptions, catalog, reconciliation and the shared envelope. The rest come with their routes.
 - [x] Logging of sync failures and errors with user ID, account ID, error
-  - Covers imports (`sync_failed`, `import_crashed`) and Plaid calls (`plaid_error`). Add the same for detection and reminders when they exist.
+  - Covers imports (`sync_failed`, `import_crashed`), Plaid calls (`plaid_error`) and detection (`detection_ok`, `detection_failed`). Add the same for reminders when they exist.
 - [ ] Background worker and queue for syncs and the yearly job
 - [ ] Daily DB backups with point-in-time recovery, restore tested before launch (infra)
 - [ ] Pytest for every TC that can be automated, Plaid sandbox only, mocked Plaid for load tests
-  - Plaid onboarding is covered (219 tests, FakePlaid, in-memory SQLite). Detection, reporting and reminders are open.
+  - Plaid onboarding, detection and reconciliation are covered (285 tests, FakePlaid, in-memory SQLite). Reporting and reminders are open.
 
 ## Frontend
 
@@ -100,19 +110,26 @@ FR = functional requirement, NFR = non-functional requirement, TC = test case.
 - [ ] Choose framework and set up the project (no frontend folder exists yet)
 - [ ] API client with session handling, redirect to login on 401 or timeout (TC-16)
 - [ ] Shared components, one date and currency format everywhere
-- [ ] Label chip component: actual, assumed, unconfirmed, likely, manual (text plus color)
+- [x] Label chip component: actual, assumed, unconfirmed, likely, manual (text plus color)
+  - `components/LabelChip.tsx`.
 - [ ] Error and warning messages that say what happened and what to do, for example "Sync failed. Your data may be out of date. Try sync now."
 
 ### Screens
 - [ ] Register and login
 - [ ] Nav bar with Dashboard, Subscriptions, Payments, reachable from every page
 - [ ] Link bank account: Plaid Link, cancel message with retry (TC-01, TC-04)
+  - Not built. In `npm run dev` only, the empty Subscriptions page has a button that links Plaid's sandbox bank and syncs once.
+  - Plaid's sandbox sends one month on the first pull and the rest on the second, so a single sync finds no recurring payments.
 - [ ] Linked accounts list with institution, last sync time, "Sync now", disconnect, reconnect when `needs_reauth`
 - [ ] Privacy info: what is collected, why, how long kept
 - [ ] Dashboard: total monthly spend, active count, upcoming payments, interactive bar chart with period picker, click a bar to list that month, projected yearly spend per category, empty state with $0.00 (TC-15)
 - [ ] Subscriptions page: list with labels, warnings, similar-subscription flags, confirm or dismiss LIKELY items, add and edit entry points
-- [ ] Assumed list picker from the catalog
-- [ ] Unexpected and unconfirmed report with name, last payment date, amount
+  - The list, labels, similar flags, and confirm and dismiss are done (`pages/Subscriptions.tsx`).
+  - "Add subscription" opens a placeholder, and there is no edit entry point yet. Both wait for the manual group.
+- [x] Assumed list picker from the catalog
+  - `pages/AssumedList.tsx` at `/subscriptions/assumed`, grouped by service type.
+- [x] Unexpected and unconfirmed report with name, last payment date, amount
+  - Shown at the bottom of the Subscriptions page.
 - [ ] Add and edit manual subscription form with inline validation errors, save and cancel (TC-11, TC-12)
 - [ ] Payments page: Upcoming (30 days, "estimated") and Past tabs, sortable by date and amount (TC-13, TC-14)
 - [ ] Notification preferences: lead times, multiple reminders
@@ -128,3 +145,5 @@ FR = functional requirement, NFR = non-functional requirement, TC = test case.
 - Analysis says import 12 months, design requests 24 months from Plaid and stores 12.
 That is intentional (24 for yearly detection, 12 stored), but the Analysis wording should match.
 - Notification channel is never named.
+- FR 2c in the Design Report says "same category", but the pseudocode groups by `serviceType` ("Music streaming", not "Entertainment").
+  The code follows the pseudocode, and the catalog gives each entry both fields.

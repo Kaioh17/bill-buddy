@@ -1,5 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { ApiError, api, login, session, tokenExpiry } from './api'
+import {
+  ApiError,
+  api,
+  confirmSubscription,
+  getSubscriptions,
+  linkSandboxBank,
+  login,
+  saveAssumed,
+  session,
+  tokenExpiry,
+} from './api'
 
 const jwt = (exp: number) => `x.${btoa(JSON.stringify({ exp })).replace(/=/g, '')}.y`
 const reply = (status: number, body: unknown, headers: Record<string, string> = {}) =>
@@ -84,3 +94,41 @@ describe('api client', () => {
     expect(tokenExpiry('garbage')).toBe(0)
   })
 })
+
+describe('subscription calls', () => {
+  beforeEach(() => session.start('tok'))
+
+  it('accepts a 204 with no body', async () => {
+    fetchMock.mockResolvedValue(new Response(null, { status: 204 }))
+    await expect(confirmSubscription('abc')).resolves.toBeUndefined()
+    const [url, init] = fetchMock.mock.calls[0]
+    expect(url).toMatch(/\/subscriptions\/abc\/confirm$/)
+    expect(init.method).toBe('POST')
+  })
+
+  it('unwraps the list envelope', async () => {
+    fetchMock.mockResolvedValue(reply(200, { meta: { count: 1 }, data: [{ id: 'a', name: 'Netflix' }] }))
+    expect(await getSubscriptions()).toEqual([{ id: 'a', name: 'Netflix' }])
+  })
+
+  it('saves the assumed list as a PUT with the ids', async () => {
+    fetchMock.mockResolvedValue(reply(200, { data: { catalog_entry_ids: ['x'] } }))
+    await saveAssumed(['x'])
+    const [url, init] = fetchMock.mock.calls[0]
+    expect(url).toMatch(/\/assumed$/)
+    expect(init.method).toBe('PUT')
+    expect(JSON.parse(init.body)).toEqual({ catalog_entry_ids: ['x'] })
+  })
+
+  it('syncs the sandbox bank once after linking it', async () => {
+    fetchMock
+      .mockResolvedValueOnce(reply(201, { data: { id: 'acct-1' } }))
+      .mockResolvedValueOnce(reply(200, { data: {} }))
+    await linkSandboxBank()
+    expect(fetchMock.mock.calls.map(([url]) => url.replace(/^.*(?=\/(plaid|accounts))/, ''))).toEqual([
+      '/plaid/sandbox-link',
+      '/accounts/acct-1/sync',
+    ])
+  })
+})
+

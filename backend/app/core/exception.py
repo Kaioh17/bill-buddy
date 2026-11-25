@@ -83,6 +83,13 @@ class EmailAlreadyRegisteredError(ConflictError):
     )
 
 
+class NotLikelyError(ConflictError):
+    code, message = (
+        "not_likely",
+        "Only likely subscriptions can be confirmed or dismissed",
+    )
+
+
 # Bank link and sync errors. Messages are safe to show: Plaid's own wording and codes
 # stay in the logs and never reach the client.
 class BankProviderError(AppException):

@@ -111,7 +111,7 @@ export async function api<T>(path: string, opts: { method?: string } & Partial<B
   // `token` is checked too so a response landing after logout cannot revive the session.
   if (renewed && sentToken && token) write(renewed)
 
-  if (res.ok) return (await res.json()) as T
+  if (res.ok) return (res.status === 204 ? undefined : await res.json()) as T
 
   // A 401 on a request that carried a token means the session is over. A 401 without one
   // is just a failed login and must not look like a timeout.
@@ -214,4 +214,79 @@ export async function getUpcomingPayments(): Promise<UpcomingPayment[]> {
 /** TODO(backend): no route returns the signed-in user's name yet, so this is null for now. */
 export async function getCurrentUser(): Promise<CurrentUser | null> {
   return MOCK ? (await mocks()).currentUser : null
+}
+
+// ---- subscriptions, the assumed list and reconciliation ----
+
+export type Frequency = 'WEEKLY' | 'MONTHLY' | 'YEARLY'
+
+export type Subscription = {
+  id: string
+  name: string
+  /** `likely` is a detection the user has not confirmed yet. It is left out of every total. */
+  label: 'actual' | 'likely' | 'manual'
+  frequency: Frequency
+  kind: 'SUBSCRIPTION' | 'BILL'
+  category: string | null
+  service_type: string | null
+  amount: string
+  last_payment_date: string | null
+  /** An estimate from the last payment, never a confirmed bill. */
+  next_expected_date: string
+  /** Why a likely item is only likely. Empty for the others. */
+  likely_reasons: string[]
+  on_assumed_list: boolean
+  /** Names of other active subscriptions of the same service type, such as two music apps. */
+  similar_to: string[]
+}
+
+export type CatalogEntry = { id: string; name: string; service_type: string; category: string; selected: boolean }
+
+export type Reconciliation = {
+  /** Found in the bank data, not on the assumed list. */
+  unexpected: { subscription_id: string; name: string; last_payment_date: string | null; amount: string }[]
+  /** On the assumed list, but no matching bank payment in the last 60 days. */
+  unconfirmed: { catalog_entry_id: string; name: string; last_payment_date: string | null; amount: string | null }[]
+}
+
+export async function getSubscriptions(): Promise<Subscription[]> {
+  if (MOCK) return (await mocks()).getSubscriptions()
+  return (await api<Envelope<Subscription[]>>('/subscriptions')).data
+}
+
+export async function confirmSubscription(id: string): Promise<void> {
+  if (MOCK) return (await mocks()).confirmSubscription(id)
+  await api(`/subscriptions/${id}/confirm`, { method: 'POST' })
+}
+
+export async function dismissSubscription(id: string): Promise<void> {
+  if (MOCK) return (await mocks()).dismissSubscription(id)
+  await api(`/subscriptions/${id}/dismiss`, { method: 'POST' })
+}
+
+export async function getCatalog(): Promise<CatalogEntry[]> {
+  if (MOCK) return (await mocks()).getCatalog()
+  return (await api<Envelope<CatalogEntry[]>>('/catalog')).data
+}
+
+/** Replaces the assumed list. The server drops ids it does not know. */
+export async function saveAssumed(catalogEntryIds: string[]): Promise<void> {
+  if (MOCK) return (await mocks()).saveAssumed(catalogEntryIds)
+  await api('/assumed', { method: 'PUT', json: { catalog_entry_ids: catalogEntryIds } })
+}
+
+export async function getReconciliation(): Promise<Reconciliation> {
+  if (MOCK) return (await mocks()).getReconciliation()
+  return (await api<Envelope<Reconciliation>>('/reconciliation')).data
+}
+
+/**
+ * Dev only: links Plaid's test bank with no Link UI, the backend refuses outside the sandbox.
+ * Plaid's sandbox sends only the last month on the first pull and the rest on the second,
+ * so this syncs once more. Without it nothing recurs yet and detection finds nothing.
+ */
+export async function linkSandboxBank(): Promise<void> {
+  if (MOCK) return (await mocks()).linkSandboxBank()
+  const { data } = await api<Envelope<{ id: string }>>('/plaid/sandbox-link', { method: 'POST' })
+  await api(`/accounts/${data.id}/sync`, { method: 'POST' })
 }

@@ -16,7 +16,16 @@ from app.models import (  # noqa: F401  (registers tables on Base.metadata)
     transactions,
     users,
 )
-from app.routers import accounts, auth, health, plaid
+from app.routers import (
+    accounts,
+    assumed,
+    auth,
+    catalog,
+    health,
+    plaid,
+    reconciliation,
+)
+from app.routers import subscriptions as subscriptions_router
 
 
 def create_app() -> FastAPI:
@@ -29,6 +38,10 @@ def create_app() -> FastAPI:
     app.include_router(auth.router)
     app.include_router(plaid.router)
     app.include_router(accounts.router)
+    app.include_router(subscriptions_router.router)
+    app.include_router(catalog.router)
+    app.include_router(assumed.router)
+    app.include_router(reconciliation.router)
 
     # Rate limiting on login and signup is intentionally not here yet.
     # It is out of scope for the school project, add it before any real deployment.

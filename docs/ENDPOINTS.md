@@ -6,10 +6,10 @@ Focus is overall functionality: Plaid sandbox onboarding, subscription detection
 
 ## Summary
 
-About 29 endpoints for the prototype.
-11 are built and tested: 4 auth and health, 7 Plaid onboarding.
-18 are still open: 7 detection, 3 manual, 4 reporting, 4 notifications.
-With the suggested cuts at the bottom (merchant links, and the month payments route), the open count drops to about 16.
+About 28 endpoints for the prototype (merchant links are cut, see the bottom).
+17 are built and tested: 4 auth and health, 7 Plaid onboarding, 6 detection.
+11 are still open: 3 manual, 4 reporting, 4 notifications.
+Dropping the month payments route (see Reporting) leaves 10.
 
 ## Already built (4)
 
@@ -33,24 +33,28 @@ With the suggested cuts at the bottom (merchant links, and the month payments ro
 | POST | `/plaid/sandbox-link` | Dev only, 404 outside the sandbox: links Plaid's test bank with no Link UI |
 
 All 7 are built with tests written first.
-`/plaid/sandbox-link` was added so the flow can be tested from Swagger without the frontend.
+`/plaid/sandbox-link` was added so the flow can be tested from Swagger or postman without the frontend.
 The sandbox test user is set in `SANDBOX_USER` in `app/core/plaid.py`.
 Not built yet: the reconnect flow for `needs_reauth` (Plaid update mode), the 15 minute scheduler, and the user notice when retries run out.
 
-## Subscription detection and the assumed list (7) [open]
+## Subscription detection and the assumed list (6) [done]
 
 | Method | Path | Purpose |
 |---|---|---|
-| GET | `/subscriptions` | Active and LIKELY items with labels and similar-service flags |
-| POST | `/subscriptions/{id}/confirm` | Confirm a LIKELY item |
-| POST | `/subscriptions/{id}/dismiss` | Dismiss a LIKELY item, writes to `dismissed_subscriptions` |
-| GET | `/catalog` | Catalog entries for the picker |
-| PUT | `/assumed` | Save the catalog selection |
+| GET | `/subscriptions` | Active items, LIKELY included, with `label`, `likely_reasons`, `on_assumed_list` and `similar_to` |
+| POST | `/subscriptions/{id}/confirm` | Confirm a LIKELY item, 204 |
+| POST | `/subscriptions/{id}/dismiss` | Dismiss a LIKELY item, writes to `dismissed_subscriptions`, 204 |
+| GET | `/catalog` | Catalog entries for the picker, each with `selected` for the current user |
+| PUT | `/assumed` | Replace the catalog selection, unknown IDs are dropped |
 | GET | `/reconciliation` | Unexpected and unconfirmed in one response |
-| POST | `/merchant-links` | Manually link a merchant to an assumed item |
 
-Detection itself needs no endpoint, because it runs after each import.
-A dev-only `POST /detect` is possible for manual testing, but is not planned.
+All 6 are built with tests written first.
+Detection itself has no endpoint, it runs inside `import_account` after each import, so exchange, sync now and the webhook all trigger it.
+A detection failure is logged and never fails the sync.
+Confirm and dismiss return 204 on purpose, the frontend reloads the list, which also refreshes the similar flags.
+`GET /subscriptions` already returns manual rows (label `manual`) once the manual group exists.
+Not built: the yearly detection job, because it needs 24 months of history and only 12 are stored.
+`detect_subscriptions` already accepts `YEARLY`, only the job that feeds it is missing.
 
 ## Manual subscriptions (3) [open]
 
@@ -93,6 +97,7 @@ That brings this group to 3.
 
 ## Suggested cuts since this is a prototype
 
-- **Merchant links:** the manual link flow is an edge case.
+- **Merchant links [cut]:** `POST /merchant-links` is not built, it is an edge case.
   Alias matching plus a Plaid entity ID is enough to demo detection.
+  The `merchant_links` table stays, and matching has no "user link" step until the route exists.
 

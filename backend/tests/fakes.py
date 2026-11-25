@@ -2,7 +2,7 @@
 
 import hashlib
 import json
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 
 import jwt
 from cryptography.hazmat.primitives.asymmetric import ec
@@ -144,3 +144,8 @@ class FakePlaid:
 
 def minutes_ago(n: int) -> datetime:
     return FROZEN_NOW - timedelta(minutes=n)
+
+
+def ago(*days: int) -> list[date]:
+    """Dates `n` days before the frozen today, in the order given (oldest first)."""
+    return [FROZEN_NOW.date() - timedelta(days=n) for n in days]

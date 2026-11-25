@@ -26,6 +26,7 @@ from app.core.exception import (
 from app.core.plaid import PlaidClient, PlaidError
 from app.models.linked_accounts import LinkedAccount, LinkStatus
 from app.models.transactions import Transaction
+from app.services import detection
 
 logger = logging.getLogger(__name__)
 
@@ -71,6 +72,7 @@ async def import_account(
         await db.refresh(account)
         raise await _record_failure(db, account, exc, now) from exc
 
+    await _detect(db, account)
     logger.info(
         "import_ok",
         extra={
@@ -82,6 +84,19 @@ async def import_account(
         },
     )
     return result
+
+
+async def _detect(db: AsyncSession, account: LinkedAccount) -> None:
+    """Find subscriptions in the fresh data. The import is already committed, so a bug
+    here is logged and never fails the sync."""
+    try:
+        await detection.detect_subscriptions(db, account.user_id)
+    except Exception:
+        await db.rollback()
+        logger.exception(
+            "detection_failed",
+            extra={"user_id": str(account.user_id), "account_id": str(account.id)},
+        )
 
 
 async def _acquire_lock(db: AsyncSession, account: LinkedAccount, now) -> None:

@@ -2,7 +2,16 @@
  * Sample data for `npm run dev` with VITE_USE_MOCKS=true (see .env.example). Never bundled
  * in a production build. Dates are relative to today, so the dashboard always looks current.
  */
-import { ApiError, session, type CurrentUser, type Dashboard, type UpcomingPayment } from './api'
+import {
+  ApiError,
+  session,
+  type CatalogEntry,
+  type CurrentUser,
+  type Dashboard,
+  type Reconciliation,
+  type Subscription,
+  type UpcomingPayment,
+} from './api'
 import { addDays, addMonths, parseDay, sumMoney, toDay } from './format'
 
 export type MockSubscription = {
@@ -125,3 +134,101 @@ export async function getUpcomingPayments(): Promise<UpcomingPayment[]> {
 }
 
 export const currentUser: CurrentUser = { first_name: 'Jordan', last_name: 'Lee' }
+
+// ---- subscriptions: stateful, so confirm, dismiss and the picker behave like the real thing ----
+
+const CATALOG: [name: string, type: string, category: string][] = [
+  ['Netflix', 'Video streaming', 'Entertainment'],
+  ['Hulu', 'Video streaming', 'Entertainment'],
+  ['Spotify', 'Music streaming', 'Entertainment'],
+  ['Apple Music', 'Music streaming', 'Entertainment'],
+  ['Dropbox', 'Cloud storage', 'Productivity'],
+  ['Planet Fitness', 'Gym', 'Health & fitness'],
+]
+
+const resolved = new Set<string>() // likely items already confirmed or dismissed
+let assumed = new Set(['Netflix', 'Spotify', 'Hulu'])
+
+export async function getSubscriptions(): Promise<Subscription[]> {
+  const { subs, today } = await load()
+  const out: Subscription[] = subs.map((s) => ({
+    id: s.id,
+    name: s.name,
+    label: s.label,
+    frequency: s.frequency,
+    kind: 'SUBSCRIPTION',
+    category: s.category,
+    service_type: s.name === 'Spotify' ? 'Music streaming' : null,
+    amount: s.amount,
+    last_payment_date: addDays(s.next, -30),
+    next_expected_date: s.next,
+    likely_reasons: [],
+    on_assumed_list: assumed.has(s.name),
+    similar_to: s.name === 'Spotify' ? ['Apple Music'] : [],
+  }))
+  if (!subs.length) return []
+  out.push(
+    {
+      ...out[0],
+      id: 'mock-apple-music',
+      name: 'Apple Music',
+      service_type: 'Music streaming',
+      amount: '10.99',
+      on_assumed_list: false,
+      similar_to: ['Spotify'],
+      next_expected_date: addDays(today, 11),
+    },
+    {
+      ...out[0],
+      id: 'mock-likely',
+      name: 'Cloud Backup Co',
+      label: 'likely',
+      category: 'Productivity',
+      amount: '14.99',
+      likely_reasons: ['amount changed, maybe a plan change'],
+      on_assumed_list: false,
+      similar_to: [],
+      next_expected_date: addDays(today, 8),
+    },
+  )
+  return out.filter((s) => !resolved.has(s.id))
+}
+
+export async function confirmSubscription(id: string) {
+  resolved.add(id)
+}
+
+export async function dismissSubscription(id: string) {
+  resolved.add(id)
+}
+
+export async function getCatalog(): Promise<CatalogEntry[]> {
+  await load()
+  return CATALOG.map(([name, service_type, category]) => ({
+    id: name,
+    name,
+    service_type,
+    category,
+    selected: assumed.has(name),
+  }))
+}
+
+export async function saveAssumed(ids: string[]) {
+  assumed = new Set(ids)
+}
+
+export async function getReconciliation(): Promise<Reconciliation> {
+  const { subs, today } = await load()
+  if (!subs.length) return { unexpected: [], unconfirmed: [] }
+  return {
+    unexpected: [{ subscription_id: 'mock-apple-music', name: 'Apple Music', last_payment_date: addDays(today, -19), amount: '10.99' }]
+      .filter(() => !assumed.has('Apple Music')),
+    unconfirmed: [...assumed]
+      .filter((name) => !['Netflix', 'Spotify'].includes(name))
+      .map((name) => ({ catalog_entry_id: name, name, last_payment_date: null, amount: null })),
+  }
+}
+
+export async function linkSandboxBank() {
+  await load() // sample data is always "linked", this only simulates the wait
+}
