@@ -36,7 +36,14 @@ from app.core import clock  # noqa: E402
 from app.core.config import get_settings  # noqa: E402
 from app.core.plaid import get_plaid  # noqa: E402
 from app.main import create_app  # noqa: E402
+from app.models.catalog_entries import CatalogEntry  # noqa: E402
 from app.models.linked_accounts import LinkedAccount, LinkStatus  # noqa: E402
+from app.models.subscriptions import (  # noqa: E402
+    Frequency,
+    Subscription,
+    SubscriptionSource,
+    SubscriptionStatus,
+)
 from app.models.transactions import Transaction  # noqa: E402
 from app.models.users import User  # noqa: E402
 from db.database import Base, get_db  # noqa: E402
@@ -230,6 +237,71 @@ def add_txn(sessions):
             await s.commit()
 
     return add
+
+
+@pytest.fixture
+def add_series(add_txn):
+    """`await add_series(account, "Netflix", ago(70, 40, 10), amounts=[...])`: one
+    charge per date, 15.99 each unless `amounts` is given. Keywords go to every row."""
+
+    async def series(account, merchant, dates, amounts=None, **overrides) -> None:
+        for i, day in enumerate(dates):
+            await add_txn(
+                account,
+                f"{merchant}-{day}-{i}",
+                merchant_name=merchant,
+                date=day,
+                amount=Decimal(str((amounts or [15.99] * len(dates))[i])),
+                **overrides,
+            )
+
+    return series
+
+
+@pytest.fixture
+def make_entry(sessions):
+    async def make(name: str = "Netflix", **overrides) -> CatalogEntry:
+        fields = {
+            "name": name,
+            "service_type": "Video streaming",
+            "category": "Entertainment",
+            "aliases": [name.lower()],
+            "merchant_entity_ids": [],
+        } | overrides
+        async with sessions() as s:
+            entry = CatalogEntry(**fields)
+            s.add(entry)
+            await s.commit()
+            return entry
+
+    return make
+
+
+@pytest.fixture
+def make_sub(sessions):
+    """A detected ACTUAL monthly subscription unless overridden. For a manual one pass
+    `source=SubscriptionSource.MANUAL, merchant_key=None, status=None`."""
+
+    async def make(user_id, **overrides) -> Subscription:
+        fields = {
+            "user_id": user_id,
+            "source": SubscriptionSource.DETECTED,
+            "merchant_key": "name:netflix",
+            "name": "Netflix",
+            "frequency": Frequency.MONTHLY,
+            "status": SubscriptionStatus.ACTUAL,
+            "amount": Decimal("15.99"),
+            "last_payment_date": dt.date(2026, 11, 12),
+            "next_expected_date": dt.date(2026, 12, 12),
+            "is_active": True,
+        } | overrides
+        async with sessions() as s:
+            sub = Subscription(**fields)
+            s.add(sub)
+            await s.commit()
+            return sub
+
+    return make
 
 
 @pytest.fixture

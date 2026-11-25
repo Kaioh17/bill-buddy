@@ -78,6 +78,10 @@ class Subscription(Base):
         _text_enum(SubscriptionKind, "subscription_kind"),
         server_default=SubscriptionKind.SUBSCRIPTION.value,
     )
+    # The catalog service this was matched to when detected, NULL if none or manual.
+    catalog_entry_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("catalog_entries.id")
+    )
     service_type: Mapped[str | None] = mapped_column(Text)
     category: Mapped[str | None] = mapped_column(Text)
     status: Mapped[SubscriptionStatus | None] = mapped_column(

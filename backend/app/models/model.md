@@ -11,7 +11,7 @@ A bank connection (Plaid item) for a user, plus its sync state (cursor, schedule
 transactions (transaction_id pk, linked_account_id fk, user_id fk, plaid_account_id, amount, iso_currency_code, date, authorized_date, pending, merchant_name, merchant_entity_id, original_description, pfc_primary, pfc_detailed)
 Bank transactions stored as Plaid sends them.
 
-subscriptions (id pk, user_id fk, source, merchant_key, name, frequency, kind, service_type, category, status, likely_reasons, amount, last_payment_date, next_expected_date, is_active, created_at)
+subscriptions (id pk, user_id fk, source, merchant_key, name, frequency, kind, catalog_entry_id fk, service_type, category, status, likely_reasons, amount, last_payment_date, next_expected_date, is_active, created_at)
 Recurring payments (subscriptions and bills), both auto-detected and manually added, in one table.
 
 matched_payments (id pk, subscription_id fk, user_id fk, transaction_id unique, date, amount, merchant_name)
